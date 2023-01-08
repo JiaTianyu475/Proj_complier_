@@ -34,7 +34,8 @@ class Ui {
         JButton loadGoBtn = new JButton("上传go程序代码");
         loadGoBtn.addActionListener(e -> loadGo(jf, textArea, goPath));
 
-//        JButton createParseTreeBtn = new JButton("生成语法分析树");
+        JButton createParseTreeBtn = new JButton("生成语法分析树");
+        createParseTreeBtn.addActionListener(e -> createParseTree(goPath.get(0)));
         JButton createIrBtn = new JButton("生成中间代码");
         createIrBtn.addActionListener(e -> createIr(jf, textArea, goPath.get(0)));
         JButton createAssBtn = new JButton("生成汇编语言");
@@ -43,7 +44,7 @@ class Ui {
         createExeBtn.addActionListener(e -> createExe(jf, textArea, goPath));
 
         vBox1.add(loadGoBtn);
-//        vBox1.add(createParseTreeBtn);
+        vBox1.add(createParseTreeBtn);
         vBox1.add(createIrBtn);
         vBox1.add(createAssBtn);
         vBox1.add(createExeBtn);
@@ -59,11 +60,13 @@ class Ui {
     private static void loadGo(Component parent, JTextArea textArea, ArrayList<String> goPath) {
 
         JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setCurrentDirectory(new File("..\\test"));
+        fileChooser.setCurrentDirectory(new File("..\\test\\func"));
         fileChooser.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
 
         int result = fileChooser.showOpenDialog(parent);
         if (result == JFileChooser.APPROVE_OPTION) {
+            String text = "";
+            textArea.setText(text);
             // 如果点击了"确定", 则获取选择的文件路径
             File file = fileChooser.getSelectedFile();
 
@@ -163,7 +166,7 @@ class Ui {
             for(int i = 0; i < path_.length-1; i++){
                 path = path+"\\"+path_[i];
             }
-            System.out.println(path+"\\"+name+"\\"+name+".s");
+//            System.out.println(path+"\\"+name+"\\"+name+".s");
             assPath = path+"\\"+name+"\\"+name+".s";
             ass.initFile(IrFile, assPath);
             BufferedWriter assResult= ass.getFrame();
@@ -206,6 +209,21 @@ class Ui {
         }
 
     }
+
+    public static void createParseTree(String goPath){
+        try {
+            String path = goPath;
+
+            String cmd ="cmd /c  D: && grun go golang -gui "+path;
+            Runtime run = Runtime.getRuntime();
+            Process pr = run.exec(cmd);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
 
 }
 

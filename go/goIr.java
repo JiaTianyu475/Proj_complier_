@@ -382,8 +382,13 @@ class Ir extends goBaseListener {
         int count = ctx.getChild(1).getChildCount();
         ta.put("localVarType", ctx.getChild(1).getChild(count-1).getText());
         ta.put("localVarNumber", String.valueOf(count/2));
+        int j = 0;
         for(int i = 0; i < count - 1; i++){
-            ta.put("localVarName"+i,ctx.getChild(1).getChild(i).getText());
+            if(ctx.getChild(1).getChild(i).getText().compareTo(",") != 0) {
+                ta.put("localVarName" + j, ctx.getChild(1).getChild(i).getText());
+                j++;
+            }
+
         }
 
         IrFile.add(ta);

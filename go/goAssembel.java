@@ -19,9 +19,11 @@ class Assemble {
     ArrayList<String> localVarList = new ArrayList<String>();
     HashMap<String, String> localVarOffset = new HashMap<String, String>();
     ArrayList<String> globalVarList = new ArrayList<String>();
+    ArrayList<String> funcList = new ArrayList<String>();
     String[] register = {"AX", "BX", "CX", "DX", "SI", "DI", "BP", "SP"};
     int[] regState ={0,0,0,0,0,0,0,0};
     HashMap<String, String> regValue = new HashMap<String, String>();
+    String error = " ";
     public void initFile(ArrayList<HashMap<String, String>> IrFile, String filepath){
         createIrFile(IrFile);
         try {
@@ -33,9 +35,10 @@ class Assemble {
 //             System.out.printf("file.getname: %s\n", file.getPath());
             FileWriter fileWriter = new FileWriter(file.getPath(), true);
             AssembleFile = new BufferedWriter(fileWriter);
-            writeFile("#include \"textflag.h\"\n\n");
             createOp();
+            writeFile("#include \"textflag.h\"\n\n");
             readIrFile();
+//            System.out.println(regValue);
             AssembleFile.close();
         } catch (IOException e) {
             e.printStackTrace();
@@ -123,8 +126,16 @@ class Assemble {
             }
         }
     }
+    public void freeAllReg(){
+        for(int i = 0; i < regState.length; i++){
+                regState[i] = 0;
+        }
+        regValue.clear();
+    }
+
     public void readIrFile(){
         getVarList();
+        getFuncList();
         int m = 0;//fp
         int n = 0;//sp
         for(int i = 0; i < IrFile.size(); i++){
@@ -134,7 +145,7 @@ class Assemble {
                 int framSize = getFramSize(i);
                 int argSize = getArgSize(i);
                 writeFile(String.format("TEXT ·%s(SB), NOSPLIT, $%d-%d\n", funcName, framSize, argSize));
-
+                freeAllReg();
                 // MOVQ a+0(FP), AX
                 // MOVQ b+8(FP), BX
                 int j = 0;
@@ -206,7 +217,16 @@ class Assemble {
                         String arg2 = IrFile.get(i).get("arg2");
                         String result = IrFile.get(i).get("result");
                         String src, dst;
-
+                        dst = getRepresentation(arg1);
+                        src = getRepresentation(arg2);
+                        if(src.compareTo(" ") == 0){
+                            error = "参数"+arg2+"未定义\n";
+                            break;
+                        }
+                        if(dst.compareTo(" ") == 0){
+                            error = "参数"+arg1+"未定义\n";
+                            break;
+                        }
                         if (!isNumeric(arg1) && isNumeric(arg2)) {
                             dst = getRepresentation(arg1);
                             src = getRepresentation(arg2);
@@ -258,6 +278,14 @@ class Assemble {
                         String src, dst;
                         src = getRepresentation(arg1);
                         dst = getRepresentation(arg2);
+                        if(src.compareTo(" ") == 0){
+                        error = "参数"+arg1+"未定义\n";
+                        break;
+                        }
+                        if(dst.compareTo(" ") == 0){
+                        error = "参数"+arg2+"未定义\n";
+                        break;
+                        }
                         writeFile(String.format("   CMPQ %s, %s\n", src, dst));
                     }
                 }
@@ -268,6 +296,10 @@ class Assemble {
                     String src, dst;
                     if (!isNumeric(arg1)) {
                         dst = getRepresentation(arg1);
+                        if(dst.compareTo(" ") == 0){
+                            error = "参数"+arg1+"未定义\n";
+                            break;
+                        }
                         writeFile(String.format("   %s %s\n", inst, dst));
                         if(isLocalVar(arg1) == 2) {
                             regValue.remove(arg1, dst);
@@ -297,7 +329,10 @@ class Assemble {
                     String arg1 = IrFile.get(i).get("arg1");
                     String src;
                     src = getRepresentation(arg1);
-
+                    if(src.compareTo(" ") == 0){
+                        error = "参数"+arg1+"未定义\n";
+                        break;
+                    }
                     if(isLocalVar(arg1) == 1){
                         String dstReg = register[getRegister()];
                         writeFile(String.format("   MOVQ %s, %s\n", src, dstReg));
@@ -324,7 +359,11 @@ class Assemble {
                     String tag = IrFile.get(i).get("tag");
                     if(tag.compareTo("callee") == 0) {
                         String calleeName = IrFile.get(i).get("op");
-                        writeFile(String.format("   CALL .%s(SB)\n", calleeName));
+                        if(!funcList.contains(calleeName)){
+                            error = "函数"+calleeName+"未定义\n";
+                            break;
+                        }
+                        writeFile(String.format("   CALL ·%s(SB)\n", calleeName));
                         String result = IrFile.get(i).get("result");
                         String dst = register[getRegister()];
                         regValue.put(result, dst);
@@ -350,6 +389,14 @@ class Assemble {
                     String src, dst;
                     src = getRepresentation(arg1);
                     dst = getRepresentation(result);
+                    if(src.compareTo(" ") == 0){
+                        error = "参数"+arg1+"未定义\n";
+                        break;
+                    }
+                    if(dst.compareTo(" ") == 0){
+                        error = "参数"+result+"未定义\n";
+                        break;
+                    }
                     writeFile(String.format("   MOVQ %s, %s\n", src, dst));
                 }
 
@@ -370,7 +417,15 @@ class Assemble {
                 else if(op.compareTo("goto") == 0){
                     String[] result = IrFile.get(i).get("result").split(" ");
                     String label = result[1];
-                    writeFile(String.format("   JMP %s\n", label));
+                    if(IrFile.get(i-1).containsKey("op")){
+                        if(IrFile.get(i-1).get("op").compareTo("return") != 0){
+                            writeFile(String.format("   JMP %s\n", label));
+                        }
+                    }
+                    else {
+                        writeFile(String.format("   JMP %s\n", label));
+                    }
+
                 }
                 else if(op.compareTo("if !arg1") == 0){
                     String cmp = IrFile.get(i-1).get("op");
@@ -380,6 +435,9 @@ class Assemble {
                     writeFile(String.format("   %s %s\n", inst, label));
                 }
             }
+        }
+        if(error.compareTo(" ") != 0){
+            writeFile(error);
         }
     }
     //参数类型大小
@@ -488,6 +546,13 @@ class Assemble {
             }
         }
     }
+    public void getFuncList(){
+        for(int i = 0; i < IrFile.size(); i++) {
+            if (IrFile.get(i).containsKey("funcName")) {
+                funcList.add(IrFile.get(i).get("funcName"));
+            }
+        }
+    }
 
     public int isLocalVar(String varName){
         if(localVarList.contains(varName)){
@@ -502,6 +567,7 @@ class Assemble {
         return -1;
     }
 
+
     public String getRepresentation(String arg){
         //立即数
         if(isNumeric(arg)){
@@ -509,7 +575,14 @@ class Assemble {
         }
         //寄存器
         else if(isLocalVar(arg) == 2){
-            return regValue.get(arg);
+            String res = regValue.get(arg);
+//            if(res.compareTo("") == 0){
+//                String dst = register[getRegister()];
+//                regValue.put(arg, dst);
+//                regState[getRegister()] = 1;
+//                res = dst;
+//            }
+            return res;
         }
         //global
         else if(isLocalVar(arg) == 0){
@@ -520,6 +593,8 @@ class Assemble {
             String offset = localVarOffset.get(arg);
             return arg+"-"+offset+"(SP)";
         }
+
+
         return " ";
     }
 }
