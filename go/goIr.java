@@ -70,7 +70,8 @@ class Ir extends goBaseListener {
         HashMap<String, String> ta = new HashMap<String, String>();
         ta.put("op", "[]");
         ta.put("result", "(" + i + ")");
-        ta.put("arg1", getIrFileTree(ctx.getChild(2)));
+        ta.put("arg1", getIrFileTree(ctx.getChild(0)));
+        ta.put("arg2", getIrFileTree(ctx.getChild(2)));
         IrFile.add(ta);
         setIrFileTree(ctx, "(" + i + ")");
         i++;

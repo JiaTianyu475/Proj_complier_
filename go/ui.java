@@ -76,6 +76,7 @@ class Ui {
                 while ((line = bufferedReader.readLine()) != null) {
                     textArea.append(line+"\n");
                 }
+                goPath.clear();
                 goPath.add(file.getAbsolutePath());
                 goPath.add(file.getParent());
                 goPath.add(file.getName());
